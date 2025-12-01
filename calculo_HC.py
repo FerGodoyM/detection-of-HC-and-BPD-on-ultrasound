@@ -380,7 +380,7 @@ def calcular_HC_robusto(contorno, ellipse, pixel_size, HC_esperado=None):
         'BPD_mm': BPD_mm,
         'OFD_mm': OFD_mm,
         'aspect_ratio': major / minor,
-        'circularity': circularity,
+        'circularity': circularity,      
         'metodo_usado': 'mixto' if circularity > 0.60 else 'ramanujan'
     }
 

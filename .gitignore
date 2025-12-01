@@ -21,7 +21,9 @@ DATASET*/
 *.jpeg
 *.tif
 *.tiff
-*.csv
+# Permitir versionar solo los CSV de metadatos
+!DATASET HC18/training_set_pixel_size_and_HC.csv
+!DATASET HC18/test_set_pixel_size.csv
 
 # Model weights and artifacts
 *.h5
