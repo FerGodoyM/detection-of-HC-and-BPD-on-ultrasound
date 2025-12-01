@@ -1,0 +1,41 @@
+# Python virtual environments
+env/
+venv/
+.venv/
+
+# Python cache/bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter/VS Code
+.ipynb_checkpoints/
+.vscode/
+
+# Datasets and large assets
+DATASET HC18/
+DATASET*/
+*.png
+*.jpg
+*.jpeg
+*.tif
+*.tiff
+*.csv
+
+# Model weights and artifacts
+*.h5
+*.hdf5
+*.ckpt
+*.pb
+*.onnx
+
+# Logs and outputs
+logs/
+*.log
+outputs/
+resultados/
+
+# OS files
+Thumbs.db
+.DS_Store
