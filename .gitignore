@@ -25,8 +25,9 @@ DATASET*/
 !DATASET HC18/training_set_pixel_size_and_HC.csv
 !DATASET HC18/test_set_pixel_size.csv
 
-# Model weights and artifacts
-*.h5
+# Model weights and artifacts (permitir .h5 para versionar o usar LFS)
+# Quitar comentario si quieres ignorarlos nuevamente
+# *.h5
 *.hdf5
 *.ckpt
 *.pb

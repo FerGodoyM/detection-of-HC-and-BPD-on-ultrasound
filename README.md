@@ -24,8 +24,6 @@ python -m pip install -r requirements.txt
 ```
 
 ## Dataset
-- HC18 (Head Circumference Challenge)
-- Estructura esperada en `DATASET HC18/`:
   - `training_set/` y `test_set/` con imágenes `*_HC.png`
   - `training_set_pixel_size_and_HC.csv` (pixel size y HC real)
   - `test_set_pixel_size.csv` (pixel size)
@@ -41,10 +39,16 @@ python entrenamiento.py
 ```
 Salida: guarda el mejor modelo en `unet_hc18_best.h5`.
 
+### Pesos entrenados
+- Archivo: `unet_hc18_best.h5`
+- Ubicación: raíz del proyecto (mismo nivel que los scripts)
+- Uso: `calculo_HC.py` intentará cargarlo automáticamente.
+
+Nota: Por políticas de tamaño y buenas prácticas, no se versiona el archivo `.h5` en el repositorio público. Puedes generarlo ejecutando `entrenamiento.py` o colocar tu propio `.h5` con el mismo nombre en la raíz.
+
 ## Inferencia y Medición
 El script `calculo_HC.py` carga el modelo y aplica el pipeline optimizado para medir HC/BPD.
 
-- Funciones clave:
   - `load_sample_with_scaling(id)`: carga imagen `id` y corrige pixel size tras resize.
   - `get_HC_real(id)`: obtiene HC real del CSV (si disponible).
   - `medir_HC_pipeline_optimizado(pred, pixel_size, HC_esperado, visualizar, debug)`: pipeline de post-proceso y medición.
@@ -54,6 +58,11 @@ Ejecutar sobre ejemplos:
 python calculo_HC.py
 ```
 El script procesa por defecto `045`, `050`, `300`, `202` y muestra visualizaciones (si están habilitadas).
+
+### Créditos del dataset
+Este proyecto utiliza el dataset HC18: Head Circumference Challenge. Más información y créditos en:
+https://hc18.grand-challenge.org
+Por favor, respeta los términos de uso y cita adecuadamente a los autores del desafío HC18.
 
 ## Estructura del Proyecto
 - `calculo_HC.py`: Pipeline de medición (post-proceso, contorno, elipse, cálculo HC/BPD) y carga de metadatos.
