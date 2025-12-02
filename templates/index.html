@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏥 Entrenamiento HC/BPD - Obstetricia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 15px 25px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            text-align: center;
+            padding: 8px 0 12px;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 20px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .canvas-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #mainCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            cursor: crosshair;
+            object-fit: contain;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: #00d4ff;
+        }
+
+        .steps {
+            display: flex;
+            gap: 8px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .step.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(124, 58, 237, 0.2));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+        }
+
+        .step.completed {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .step.active .step-number {
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+        }
+
+        .step.completed .step-number {
+            background: #22c55e;
+        }
+
+        .step-text {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        .step.active .step-text,
+        .step.completed .step-text {
+            color: #fff;
+        }
+
+        .measurements {
+            display: grid;
+            gap: 12px;
+        }
+
+        .measurement-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .measurement-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .measurement-box.user {
+            border: 2px solid #00d4ff;
+        }
+
+        .measurement-box.ia {
+            border: 2px solid #7c3aed;
+        }
+
+        .measurement-box.real {
+            border: 2px solid #22c55e;
+        }
+
+        .measurement-label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .measurement-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .measurement-box.user .measurement-value { color: #00d4ff; }
+        .measurement-box.ia .measurement-value { color: #7c3aed; }
+        .measurement-box.real .measurement-value { color: #22c55e; }
+
+        .measurement-unit {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .instructions {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            line-height: 1.5;
+            padding: 12px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 10px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .error-display {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .error-display.good {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .error-display.medium {
+            background: rgba(234, 179, 8, 0.2);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+        }
+
+        .error-display.bad {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .error-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .error-display.good .error-value { color: #22c55e; }
+        .error-display.medium .error-value { color: #eab308; }
+        .error-display.bad .error-value { color: #ef4444; }
+
+        .legend {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-color.user { background: #00d4ff; }
+        .legend-color.ia { background: #7c3aed; }
+        .legend-color.real { background: #22c55e; }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .tool-btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .tool-btn.active {
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            border-color: transparent;
+        }
+
+        .image-info {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-baby"></i> Entrenamiento en Biometría Fetal</h1>
+            <p>Practica la medición de HC (Circunferencia Cefálica) y BPD (Diámetro Biparietal)</p>
+        </header>
+
+        <div class="main-content">
+            <div class="canvas-section">
+                <div class="toolbar">
+                    <button class="tool-btn active" id="toolEllipse" title="Dibujar elipse para HC">
+                        <i class="fas fa-circle"></i> Elipse
+                    </button>
+                    <button class="tool-btn" id="toolLine" title="Dibujar línea para BPD">
+                        <i class="fas fa-ruler"></i> Línea
+                    </button>
+                    <button class="tool-btn" id="toolClear" title="Limpiar">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button class="tool-btn" id="toolUndo" title="Deshacer">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <span class="image-info" id="imageInfo" style="margin-left: auto; font-size: 0.85rem; color: #64748b;"></span>
+                </div>
+                
+                <div class="canvas-container">
+                    <canvas id="mainCanvas"></canvas>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <div class="steps">
+                        <div class="step active" id="step1">
+                            <div class="step-number">1</div>
+                            <div class="step-text">Elipse</div>
+                        </div>
+                        <div class="step" id="step2">
+                            <div class="step-number">2</div>
+                            <div class="step-text">BPD</div>
+                        </div>
+                        <div class="step" id="step3">
+                            <div class="step-number">3</div>
+                            <div class="step-text">Resultado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="instructions" id="instructions">
+                        <strong>Paso 1:</strong> Dibuja una elipse alrededor de la cabeza fetal.<br>
+                        • Arrastra desde una esquina a la opuesta
+                    </div>
+                </div>
+
+                <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Mediciones
+                    </div>
+                    
+                    <div class="measurements">
+                        <div>
+                            <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 4px;">HC (Circunferencia Cefálica)</div>
+                            <div class="measurement-row">
+                                <div class="measurement-box user">
+                                    <div class="measurement-label">Tú</div>
+                                    <div class="measurement-value" id="userHC">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box ia">
+                                    <div class="measurement-label">IA</div>
+                                    <div class="measurement-value" id="iaHC">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box real">
+                                    <div class="measurement-label">Real</div>
+                                    <div class="measurement-value" id="realHC">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 4px;">BPD (Diámetro Biparietal)</div>
+                            <div class="measurement-row">
+                                <div class="measurement-box user">
+                                    <div class="measurement-label">Tú</div>
+                                    <div class="measurement-value" id="userBPD">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box ia">
+                                    <div class="measurement-label">IA</div>
+                                    <div class="measurement-value" id="iaBPD">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box real">
+                                    <div class="measurement-label">Real</div>
+                                    <div class="measurement-value" id="realBPD">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="error-display good" id="errorDisplay" style="display: none;">
+                        <div style="font-size: 0.7rem;">Tu error en HC</div>
+                        <div class="error-value" id="errorValue">0%</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <button class="btn btn-primary" id="btnNext" style="width: 100%;">
+                        <i class="fas fa-arrow-right"></i>
+                        <span id="btnNextText">Siguiente</span>
+                    </button>
+                    <div class="controls">
+                        <button class="btn btn-secondary" id="btnNewImage" style="flex: 1;">
+                            <i class="fas fa-random"></i> Nueva
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // Estado de la aplicación
+        const state = {
+            currentStep: 1,
+            currentImage: null,
+            pixelSize: 0,
+            hcReal: 0,
+            userEllipse: null,
+            userLine: null,
+            iaResult: null,
+            currentTool: 'ellipse',
+            isDrawing: false,
+            startPoint: null,
+            // Para edición de elipse
+            isDragging: false,
+            dragHandle: null,
+            ellipseAngle: 0,
+            // Para línea con 2 clics
+            lineFirstPoint: null
+        };
+
+        const HANDLE_SIZE = 10;
+
+        // Elementos DOM
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        let backgroundImage = null;
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            loadRandomImage();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('toolEllipse').addEventListener('click', () => selectTool('ellipse'));
+            document.getElementById('toolLine').addEventListener('click', () => selectTool('line'));
+            document.getElementById('toolClear').addEventListener('click', clearDrawing);
+            document.getElementById('toolUndo').addEventListener('click', undoLast);
+
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+            canvas.addEventListener('mouseleave', handleMouseLeave);
+            canvas.addEventListener('click', handleClick);
+
+            document.getElementById('btnNext').addEventListener('click', nextStep);
+            document.getElementById('btnNewImage').addEventListener('click', loadRandomImage);
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function getEllipseHandles() {
+            if (!state.userEllipse) return [];
+            const e = state.userEllipse;
+            const angle = e.angle || 0;
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            
+            return [
+                { name: 'center', x: e.centerX, y: e.centerY, cursor: 'move' },
+                { name: 'right', x: e.centerX + e.axisA * cos, y: e.centerY + e.axisA * sin, cursor: 'ew-resize' },
+                { name: 'left', x: e.centerX - e.axisA * cos, y: e.centerY - e.axisA * sin, cursor: 'ew-resize' },
+                { name: 'bottom', x: e.centerX - e.axisB * sin, y: e.centerY + e.axisB * cos, cursor: 'ns-resize' },
+                { name: 'top', x: e.centerX + e.axisB * sin, y: e.centerY - e.axisB * cos, cursor: 'ns-resize' },
+                { name: 'rotate', x: e.centerX + (e.axisA + 30) * cos, y: e.centerY + (e.axisA + 30) * sin, cursor: 'crosshair' }
+            ];
+        }
+
+        function getHandleAtPos(pos) {
+            const handles = getEllipseHandles();
+            for (const handle of handles) {
+                const dist = Math.sqrt((pos.x - handle.x) ** 2 + (pos.y - handle.y) ** 2);
+                if (dist <= HANDLE_SIZE + 5) {
+                    return handle;
+                }
+            }
+            return null;
+        }
+
+        function handleMouseDown(e) {
+            if (state.currentStep === 3) return;
+            
+            const pos = getMousePos(e);
+            
+            // Solo para elipse: verificar handles o iniciar dibujo
+            if (state.currentTool === 'ellipse') {
+                // Verificar si estamos sobre un handle de la elipse existente
+                if (state.userEllipse) {
+                    const handle = getHandleAtPos(pos);
+                    if (handle) {
+                        state.isDragging = true;
+                        state.dragHandle = handle.name;
+                        state.startPoint = pos;
+                        return;
+                    }
+                }
+                
+                // Iniciar nuevo dibujo de elipse
+                state.isDrawing = true;
+                state.startPoint = pos;
+            }
+            // Para línea, usamos handleClick
+        }
+
+        // Manejar click para línea (2 puntos)
+        function handleClick(e) {
+            if (state.currentStep === 3) return;
+            if (state.currentTool !== 'line') return;
+            
+            const pos = getMousePos(e);
+            
+            if (!state.lineFirstPoint) {
+                // Primer punto
+                state.lineFirstPoint = pos;
+                redrawCanvas();
+            } else {
+                // Segundo punto - crear la línea
+                state.userLine = {
+                    x1: state.lineFirstPoint.x,
+                    y1: state.lineFirstPoint.y,
+                    x2: pos.x,
+                    y2: pos.y
+                };
+                state.lineFirstPoint = null;
+                calcularBPDUsuario();
+                redrawCanvas();
+            }
+        }
+
+        function handleMouseLeave(e) {
+            if (state.currentTool === 'ellipse') {
+                handleMouseUp(e);
+            }
+        }
+
+        function handleMouseMove(e) {
+            const pos = getMousePos(e);
+            
+            // Cambiar cursor según posición
+            if (state.currentTool === 'ellipse' && state.userEllipse && !state.isDrawing) {
+                const handle = getHandleAtPos(pos);
+                canvas.style.cursor = handle ? handle.cursor : 'crosshair';
+            }
+            
+            // Arrastrar handle de elipse
+            if (state.isDragging && state.userEllipse) {
+                const ellipse = state.userEllipse;
+                
+                if (state.dragHandle === 'center') {
+                    ellipse.centerX = pos.x;
+                    ellipse.centerY = pos.y;
+                } else if (state.dragHandle === 'right' || state.dragHandle === 'left') {
+                    const dx = pos.x - ellipse.centerX;
+                    const dy = pos.y - ellipse.centerY;
+                    ellipse.axisA = Math.max(20, Math.sqrt(dx * dx + dy * dy));
+                    if (state.dragHandle === 'right') {
+                        ellipse.angle = Math.atan2(dy, dx);
+                    } else {
+                        ellipse.angle = Math.atan2(-dy, -dx);
+                    }
+                } else if (state.dragHandle === 'top' || state.dragHandle === 'bottom') {
+                    const angle = ellipse.angle || 0;
+                    const cos = Math.cos(angle);
+                    const sin = Math.sin(angle);
+                    const dx = pos.x - ellipse.centerX;
+                    const dy = pos.y - ellipse.centerY;
+                    const perpDist = Math.abs(-dx * sin + dy * cos);
+                    ellipse.axisB = Math.max(20, perpDist);
+                } else if (state.dragHandle === 'rotate') {
+                    const dx = pos.x - ellipse.centerX;
+                    const dy = pos.y - ellipse.centerY;
+                    ellipse.angle = Math.atan2(dy, dx);
+                }
+                
+                calcularMedidasUsuario();
+                redrawCanvas();
+                return;
+            }
+            
+            // Preview de línea (mostrar línea mientras se mueve después del primer punto)
+            if (state.currentTool === 'line' && state.lineFirstPoint) {
+                redrawCanvas();
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(state.lineFirstPoint.x, state.lineFirstPoint.y);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // Punto inicial
+                ctx.fillStyle = '#00d4ff';
+                ctx.beginPath();
+                ctx.arc(state.lineFirstPoint.x, state.lineFirstPoint.y, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Punto cursor (preview)
+                ctx.fillStyle = 'rgba(0, 212, 255, 0.5)';
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                return;
+            }
+            
+            // Dibujar elipse (preview mientras arrastra)
+            if (!state.isDrawing || state.currentTool !== 'ellipse') return;
+            
+            redrawCanvas();
+            ctx.strokeStyle = '#00d4ff';
+            ctx.lineWidth = 2;
+
+            const centerX = (state.startPoint.x + pos.x) / 2;
+            const centerY = (state.startPoint.y + pos.y) / 2;
+            const axisA = Math.abs(pos.x - state.startPoint.x) / 2;
+            const axisB = Math.abs(pos.y - state.startPoint.y) / 2;
+
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY, Math.max(axisA, 1), Math.max(axisB, 1), 0, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            ctx.fillStyle = 'rgba(0, 212, 255, 0.5)';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        function handleMouseUp(e) {
+            if (state.isDragging) {
+                state.isDragging = false;
+                state.dragHandle = null;
+                return;
+            }
+            
+            // Solo para elipse
+            if (!state.isDrawing || state.currentTool !== 'ellipse') return;
+            state.isDrawing = false;
+
+            const pos = getMousePos(e);
+
+            // Crear elipse desde bordes
+            const centerX = (state.startPoint.x + pos.x) / 2;
+            const centerY = (state.startPoint.y + pos.y) / 2;
+            const axisA = Math.abs(pos.x - state.startPoint.x) / 2;
+            const axisB = Math.abs(pos.y - state.startPoint.y) / 2;
+            
+            if (axisA > 10 && axisB > 10) {
+                state.userEllipse = {
+                    centerX: centerX,
+                    centerY: centerY,
+                    axisA: axisA,
+                    axisB: axisB,
+                    angle: 0
+                };
+                calcularMedidasUsuario();
+            }
+
+            redrawCanvas();
+        }
+
+        function selectTool(tool) {
+            state.currentTool = tool;
+            state.lineFirstPoint = null; // Limpiar punto pendiente
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            if (tool === 'ellipse') {
+                document.getElementById('toolEllipse').classList.add('active');
+            } else {
+                document.getElementById('toolLine').classList.add('active');
+            }
+            canvas.style.cursor = 'crosshair';
+            redrawCanvas();
+        }
+
+        async function loadRandomImage() {
+            showLoading(true);
+            resetState();
+
+            try {
+                const response = await fetch('/api/imagen-aleatoria');
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                state.currentImage = data.filename;
+                state.pixelSize = data.pixel_size;
+                state.hcReal = data.hc_real;
+
+                backgroundImage = new Image();
+                backgroundImage.onload = () => {
+                    canvas.width = backgroundImage.width;
+                    canvas.height = backgroundImage.height;
+                    redrawCanvas();
+                    
+                    document.getElementById('imageInfo').textContent = 
+                        `${data.filename} | ${data.pixel_size.toFixed(3)} mm/px`;
+                    
+                    document.getElementById('realHC').textContent = data.hc_real.toFixed(1);
+                    
+                    showLoading(false);
+                };
+                backgroundImage.src = `/api/imagen/${data.filename}`;
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cargar la imagen');
+                showLoading(false);
+            }
+        }
+
+        function resetState() {
+            state.currentStep = 1;
+            state.userEllipse = null;
+            state.userLine = null;
+            state.iaResult = null;
+            state.isDragging = false;
+            state.dragHandle = null;
+            state.lineFirstPoint = null;
+
+            updateStepUI();
+            document.getElementById('userHC').textContent = '--';
+            document.getElementById('userBPD').textContent = '--';
+            document.getElementById('iaHC').textContent = '--';
+            document.getElementById('iaBPD').textContent = '--';
+            document.getElementById('realBPD').textContent = '--';
+            document.getElementById('errorDisplay').style.display = 'none';
+            document.getElementById('btnNextText').textContent = 'Siguiente Paso';
+            
+            selectTool('ellipse');
+            updateInstructions();
+        }
+
+        async function calcularMedidasUsuario() {
+            if (!state.userEllipse) return;
+
+            try {
+                const response = await fetch('/api/calcular-medidas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        centerX: state.userEllipse.centerX,
+                        centerY: state.userEllipse.centerY,
+                        axisA: state.userEllipse.axisA,
+                        axisB: state.userEllipse.axisB,
+                        pixelSize: state.pixelSize
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('userHC').textContent = data.hc_mm.toFixed(1);
+            } catch (error) {
+                console.error('Error calculando medidas:', error);
+            }
+        }
+
+        async function calcularBPDUsuario() {
+            if (!state.userLine) return;
+
+            try {
+                const response = await fetch('/api/calcular-bpd', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        x1: state.userLine.x1,
+                        y1: state.userLine.y1,
+                        x2: state.userLine.x2,
+                        y2: state.userLine.y2,
+                        pixelSize: state.pixelSize
+                    })
+                });
+
+                const data = await response.json();
+                document.getElementById('userBPD').textContent = data.bpd_mm.toFixed(1);
+            } catch (error) {
+                console.error('Error calculando BPD:', error);
+            }
+        }
+
+        function redrawCanvas() {
+            if (!backgroundImage) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(backgroundImage, 0, 0);
+
+            // Dibujar elipse del usuario con handles
+            if (state.userEllipse) {
+                const e = state.userEllipse;
+                const angle = e.angle || 0;
+                
+                ctx.save();
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(e.centerX, e.centerY, e.axisA, e.axisB, angle, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.restore();
+
+                // Dibujar handles si estamos en modo elipse y no es paso 3
+                if (state.currentTool === 'ellipse' && state.currentStep !== 3) {
+                    const handles = getEllipseHandles();
+                    handles.forEach(handle => {
+                        ctx.beginPath();
+                        if (handle.name === 'center') {
+                            ctx.fillStyle = '#00d4ff';
+                            ctx.arc(handle.x, handle.y, HANDLE_SIZE, 0, 2 * Math.PI);
+                            ctx.fill();
+                        } else if (handle.name === 'rotate') {
+                            // Línea al handle de rotación
+                            ctx.strokeStyle = 'rgba(0, 212, 255, 0.5)';
+                            ctx.setLineDash([4, 4]);
+                            ctx.beginPath();
+                            ctx.moveTo(e.centerX + e.axisA * Math.cos(angle), e.centerY + e.axisA * Math.sin(angle));
+                            ctx.lineTo(handle.x, handle.y);
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            
+                            // Handle de rotación (icono circular con flecha)
+                            ctx.fillStyle = '#fbbf24';
+                            ctx.beginPath();
+                            ctx.arc(handle.x, handle.y, HANDLE_SIZE - 2, 0, 2 * Math.PI);
+                            ctx.fill();
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.arc(handle.x, handle.y, HANDLE_SIZE - 2, 0, Math.PI * 1.5);
+                            ctx.stroke();
+                        } else {
+                            ctx.fillStyle = '#fff';
+                            ctx.strokeStyle = '#00d4ff';
+                            ctx.lineWidth = 2;
+                            ctx.rect(handle.x - HANDLE_SIZE/2, handle.y - HANDLE_SIZE/2, HANDLE_SIZE, HANDLE_SIZE);
+                            ctx.fill();
+                            ctx.stroke();
+                        }
+                    });
+                }
+            }
+
+            // Dibujar línea del usuario
+            if (state.userLine) {
+                ctx.strokeStyle = '#00d4ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(state.userLine.x1, state.userLine.y1);
+                ctx.lineTo(state.userLine.x2, state.userLine.y2);
+                ctx.stroke();
+
+                ctx.fillStyle = '#00d4ff';
+                ctx.beginPath();
+                ctx.arc(state.userLine.x1, state.userLine.y1, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(state.userLine.x2, state.userLine.y2, 6, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+            
+            // Dibujar primer punto de línea (esperando segundo clic)
+            if (state.lineFirstPoint && !state.userLine) {
+                ctx.fillStyle = '#00d4ff';
+                ctx.beginPath();
+                ctx.arc(state.lineFirstPoint.x, state.lineFirstPoint.y, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Círculo pulsante para indicar que falta el segundo punto
+                ctx.strokeStyle = 'rgba(0, 212, 255, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(state.lineFirstPoint.x, state.lineFirstPoint.y, 12, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+
+            // Dibujar resultado de IA (desde el paso 2)
+            if (state.iaResult && state.currentStep >= 2) {
+                ctx.strokeStyle = '#7c3aed';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.ellipse(
+                    state.iaResult.center.x,
+                    state.iaResult.center.y,
+                    state.iaResult.axes.a,
+                    state.iaResult.axes.b,
+                    state.iaResult.angle * Math.PI / 180,
+                    0, 2 * Math.PI
+                );
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+
+        function clearDrawing() {
+            if (state.currentTool === 'ellipse') {
+                state.userEllipse = null;
+                document.getElementById('userHC').textContent = '--';
+            } else {
+                state.userLine = null;
+                state.lineFirstPoint = null;
+                document.getElementById('userBPD').textContent = '--';
+            }
+            redrawCanvas();
+        }
+
+        function undoLast() {
+            if (state.userLine) {
+                state.userLine = null;
+                document.getElementById('userBPD').textContent = '--';
+            } else if (state.userEllipse) {
+                state.userEllipse = null;
+                document.getElementById('userHC').textContent = '--';
+            }
+            redrawCanvas();
+        }
+
+        async function nextStep() {
+            if (state.currentStep === 1) {
+                if (!state.userEllipse) {
+                    alert('Por favor, dibuja la elipse primero');
+                    return;
+                }
+                
+                // Obtener predicción de la IA al pasar al paso 2
+                showLoading(true);
+                try {
+                    const response = await fetch('/api/prediccion-ia', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            filename: state.currentImage,
+                            pixelSize: state.pixelSize
+                        })
+                    });
+
+                    const data = await response.json();
+                    console.log('Respuesta IA:', data);
+
+                    if (!data.error) {
+                        state.iaResult = data;
+                        document.getElementById('iaHC').textContent = data.hc_mm.toFixed(1);
+                        
+                        // Calcular y mostrar error del usuario vs real
+                        const userHC = parseFloat(document.getElementById('userHC').textContent);
+                        const realHC = state.hcReal;
+                        if (userHC && realHC) {
+                            const errorPct = Math.abs((userHC - realHC) / realHC * 100);
+                            const errorDisplay = document.getElementById('errorDisplay');
+                            errorDisplay.style.display = 'block';
+                            document.getElementById('errorValue').textContent = errorPct.toFixed(1) + '%';
+                            
+                            errorDisplay.classList.remove('good', 'medium', 'bad');
+                            if (errorPct < 5) {
+                                errorDisplay.classList.add('good');
+                            } else if (errorPct < 10) {
+                                errorDisplay.classList.add('medium');
+                            } else {
+                                errorDisplay.classList.add('bad');
+                            }
+                        }
+                        
+                        // Redibujar para mostrar elipse de la IA
+                        redrawCanvas();
+                    }
+                } catch (error) {
+                    console.error('Error obteniendo predicción IA:', error);
+                }
+                showLoading(false);
+                
+                state.currentStep = 2;
+                selectTool('line');
+                updateStepUI();
+                updateInstructions();
+                
+            } else if (state.currentStep === 2) {
+                if (!state.userLine) {
+                    alert('Por favor, dibuja la línea BPD primero');
+                    return;
+                }
+                state.currentStep = 3;
+                
+                // Mostrar BPD de la IA si existe
+                if (state.iaResult) {
+                    document.getElementById('iaBPD').textContent = state.iaResult.bpd_mm.toFixed(1);
+                }
+                
+                document.getElementById('btnNextText').textContent = 'Nueva Imagen';
+                updateStepUI();
+                updateInstructions();
+            } else {
+                loadRandomImage();
+            }
+        }
+
+        async function mostrarResultados() {
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/prediccion-ia', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: state.currentImage,
+                        pixelSize: state.pixelSize
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.error) {
+                    state.iaResult = data;
+                    document.getElementById('iaHC').textContent = data.hc_mm.toFixed(1);
+                    document.getElementById('iaBPD').textContent = data.bpd_mm.toFixed(1);
+                    document.getElementById('realBPD').textContent = data.bpd_mm.toFixed(1);
+                }
+
+                const userHC = parseFloat(document.getElementById('userHC').textContent);
+                const realHC = state.hcReal;
+                const errorPct = Math.abs((userHC - realHC) / realHC * 100);
+
+                const errorDisplay = document.getElementById('errorDisplay');
+                errorDisplay.style.display = 'block';
+                document.getElementById('errorValue').textContent = errorPct.toFixed(1) + '%';
+
+                errorDisplay.classList.remove('good', 'medium', 'bad');
+                if (errorPct < 5) {
+                    errorDisplay.classList.add('good');
+                } else if (errorPct < 10) {
+                    errorDisplay.classList.add('medium');
+                } else {
+                    errorDisplay.classList.add('bad');
+                }
+
+                document.getElementById('btnNextText').textContent = 'Nueva Imagen';
+                redrawCanvas();
+
+            } catch (error) {
+                console.error('Error:', error);
+            }
+
+            showLoading(false);
+        }
+
+        function updateStepUI() {
+            document.querySelectorAll('.step').forEach((step, idx) => {
+                step.classList.remove('active', 'completed');
+                if (idx + 1 < state.currentStep) {
+                    step.classList.add('completed');
+                } else if (idx + 1 === state.currentStep) {
+                    step.classList.add('active');
+                }
+            });
+        }
+
+        function updateInstructions() {
+            const instructions = document.getElementById('instructions');
+            
+            if (state.currentStep === 1) {
+                instructions.innerHTML = `<strong>Paso 1:</strong> Arrastra para dibujar elipse. Ajusta con los controles ● □`;
+            } else if (state.currentStep === 2) {
+                instructions.innerHTML = `<strong>Paso 2:</strong> Haz 2 clics para marcar la línea BPD (de parietal a parietal)`;
+            } else {
+                instructions.innerHTML = `<strong>Resultados:</strong> <span style="color:#00d4ff">Cyan</span>=Tú | <span style="color:#7c3aed">Púrpura</span>=IA | Error < 5% es excelente`;
+            }
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+    </script>
+</body>
+</html>

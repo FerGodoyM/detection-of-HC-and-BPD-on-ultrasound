@@ -1,0 +1,425 @@
+/* ===== Variables y Reset ===== */
+:root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-card: rgba(255, 255, 255, 0.05);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent-blue: #3b82f6;
+    --accent-green: #10b981;
+    --accent-purple: #8b5cf6;
+    --accent-amber: #f59e0b;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --radius: 14px;
+    --radius-sm: 8px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* ===== Layout Principal ===== */
+.container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+}
+
+.header {
+    text-align: center;
+    padding: 10px 0;
+    flex-shrink: 0;
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 2px;
+}
+
+.header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.main-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+    min-height: 0;
+}
+
+/* ===== Sección del Canvas ===== */
+.canvas-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.canvas-container {
+    position: relative;
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    min-height: 0;
+}
+
+#mainCanvas {
+    max-width: 100%;
+    max-height: 100%;
+    cursor: crosshair;
+    object-fit: contain;
+}
+
+/* ===== Toolbar ===== */
+.toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0;
+    flex-shrink: 0;
+}
+
+.tool-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.tool-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.tool-btn.active {
+    background: var(--accent-blue);
+    color: white;
+}
+
+.image-info {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+    min-height: 0;
+}
+
+/* ===== Cards ===== */
+.card {
+    background: var(--bg-card);
+    border-radius: var(--radius);
+    padding: 16px;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+}
+
+.card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.card-title i {
+    color: var(--accent-blue);
+}
+
+/* ===== Steps (Pasos) ===== */
+.steps {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    gap: 8px;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.5;
+    transition: all 0.3s;
+}
+
+.step.active {
+    opacity: 1;
+}
+
+.step.completed {
+    opacity: 1;
+}
+
+.step.completed .step-number {
+    background: var(--accent-green);
+}
+
+.step-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.step.active .step-number {
+    background: var(--accent-blue);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+.step-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ===== Instructions ===== */
+.instructions {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    padding: 10px;
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent-blue);
+}
+
+.instructions strong {
+    color: var(--accent-blue);
+}
+
+/* ===== Measurements (Mediciones) ===== */
+.measurements {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.measurement-section-title {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.measurement-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.measurement-box {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    text-align: center;
+    border: 1px solid transparent;
+    transition: all 0.3s;
+}
+
+.measurement-box.user {
+    border-color: var(--accent-blue);
+}
+
+.measurement-box.ia {
+    border-color: var(--accent-purple);
+}
+
+.measurement-box.real {
+    border-color: var(--accent-green);
+}
+
+.measurement-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+}
+
+.measurement-value {
+    font-size: 1.4rem;
+    font-weight: bold;
+    font-family: 'Consolas', monospace;
+}
+
+.measurement-box.user .measurement-value {
+    color: var(--accent-blue);
+}
+
+.measurement-box.ia .measurement-value {
+    color: var(--accent-purple);
+}
+
+.measurement-box.real .measurement-value {
+    color: var(--accent-green);
+}
+
+.measurement-unit {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+/* ===== Error Display ===== */
+.error-display {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    display: none;
+}
+
+.error-display.show {
+    display: block;
+}
+
+.error-display.good {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid var(--accent-green);
+}
+
+.error-display.warning {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid var(--accent-amber);
+}
+
+.error-display.bad {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+}
+
+.error-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.error-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+}
+
+/* ===== Controls (Botones de acción) ===== */
+.controls {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 10px;
+}
+
+.btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 1rem;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ===== Scrollbar personalizado ===== */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1200px) {
+    .main-content {
+        grid-template-columns: 1fr 320px;
+    }
+}
+
+@media (max-width: 900px) {
+    .main-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+    }
+    
+    .sidebar {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .card {
+        flex: 1;
+        min-width: 200px;
+    }
+}

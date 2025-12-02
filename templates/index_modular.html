@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Práctica de Medición Fetal - HC & BPD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-baby"></i> Práctica de Medición Fetal</h1>
+            <p>Practica la medición de HC (Circunferencia Cefálica) y BPD (Diámetro Biparietal)</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Sección del Canvas -->
+            <div class="canvas-section">
+                <div class="toolbar">
+                    <button class="tool-btn active" id="toolEllipse" title="Dibujar elipse para HC">
+                        <i class="fas fa-circle"></i> Elipse
+                    </button>
+                    <button class="tool-btn" id="toolLine" title="Dibujar línea para BPD">
+                        <i class="fas fa-ruler"></i> Línea
+                    </button>
+                    <button class="tool-btn" id="toolClear" title="Limpiar">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                    <button class="tool-btn" id="toolUndo" title="Deshacer">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <span class="image-info" id="imageInfo"></span>
+                </div>
+                
+                <div class="canvas-container">
+                    <canvas id="mainCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Pasos -->
+                <div class="card">
+                    <div class="steps">
+                        <div class="step active" id="step1">
+                            <div class="step-number">1</div>
+                            <div class="step-text">Elipse</div>
+                        </div>
+                        <div class="step" id="step2">
+                            <div class="step-number">2</div>
+                            <div class="step-text">BPD</div>
+                        </div>
+                        <div class="step" id="step3">
+                            <div class="step-number">3</div>
+                            <div class="step-text">Resultado</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instrucciones -->
+                <div class="card">
+                    <div class="instructions" id="instructions">
+                        <strong>Paso 1:</strong> Dibuja una elipse alrededor de la cabeza fetal.<br>
+                        • Arrastra desde una esquina a la opuesta
+                    </div>
+                </div>
+
+                <!-- Mediciones -->
+                <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Mediciones
+                    </div>
+                    
+                    <div class="measurements">
+                        <!-- HC -->
+                        <div>
+                            <div class="measurement-section-title">HC (Circunferencia Cefálica)</div>
+                            <div class="measurement-row">
+                                <div class="measurement-box user">
+                                    <div class="measurement-label">Tú</div>
+                                    <div class="measurement-value" id="userHC">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box ia">
+                                    <div class="measurement-label">IA</div>
+                                    <div class="measurement-value" id="iaHC">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box real">
+                                    <div class="measurement-label">Real</div>
+                                    <div class="measurement-value" id="realHC">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- BPD -->
+                        <div>
+                            <div class="measurement-section-title">BPD (Diámetro Biparietal)</div>
+                            <div class="measurement-row">
+                                <div class="measurement-box user">
+                                    <div class="measurement-label">Tú</div>
+                                    <div class="measurement-value" id="userBPD">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box ia">
+                                    <div class="measurement-label">IA</div>
+                                    <div class="measurement-value" id="iaBPD">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                                <div class="measurement-box real">
+                                    <div class="measurement-label">Real</div>
+                                    <div class="measurement-value" id="realBPD">--</div>
+                                    <div class="measurement-unit">mm</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error Display -->
+                        <div class="error-display" id="errorDisplay">
+                            <div class="error-label">Tu error vs Real</div>
+                            <div class="error-value" id="errorValue">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- Controles -->
+                    <div class="controls">
+                        <button class="btn btn-secondary" id="btnNewImage">
+                            <i class="fas fa-image"></i>
+                            Nueva
+                        </button>
+                        <button class="btn btn-primary" id="btnNext">
+                            <i class="fas fa-arrow-right"></i>
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
