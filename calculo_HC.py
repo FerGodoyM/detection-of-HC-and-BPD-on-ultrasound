@@ -130,54 +130,523 @@ def load_sample_with_scaling(img_id: str, target_size: int = 256):
     return resized_norm, pixel_size_corr, orig_w, orig_h
 
 # ==============================================================
-# ETAPA 1: POST-PROCESAMIENTO MEJORADO
+# ETAPA 1: POST-PROCESAMIENTO MEJORADO CON RECONSTRUCCIÓN
 # ==============================================================
+
+def reconstruir_contorno_fragmentado(contorno, img_shape, num_puntos=360):
+    """
+    Reconstruye un contorno fragmentado interpolando puntos faltantes
+    usando ajuste de elipse y completando gaps.
+    """
+    if len(contorno) < 5:
+        return contorno
+    
+    try:
+        # Ajustar elipse inicial
+        ellipse = cv2.fitEllipse(contorno)
+        (cx, cy), (major, minor), angle = ellipse
+        
+        # Generar puntos de elipse teórica
+        theta = np.linspace(0, 2*np.pi, num_puntos)
+        a = major / 2
+        b = minor / 2
+        angle_rad = np.deg2rad(angle)
+        
+        # Puntos de elipse rotados
+        x_ellipse = cx + a * np.cos(theta) * np.cos(angle_rad) - b * np.sin(theta) * np.sin(angle_rad)
+        y_ellipse = cy + a * np.cos(theta) * np.sin(angle_rad) + b * np.sin(theta) * np.cos(angle_rad)
+        
+        # Crear contorno reconstruido
+        contorno_reconstruido = np.array([[int(x), int(y)] for x, y in zip(x_ellipse, y_ellipse)], dtype=np.int32)
+        contorno_reconstruido = contorno_reconstruido.reshape(-1, 1, 2)
+        
+        return contorno_reconstruido
+        
+    except Exception:
+        return contorno
+
+def completar_contorno_con_convex_hull(contorno, binary_mask):
+    """
+    Usa convex hull para completar contornos muy fragmentados
+    """
+    try:
+        hull = cv2.convexHull(contorno)
+        return hull
+    except Exception:
+        return contorno
+
+def unir_contornos_fragmentados(contours, img_shape, distancia_max=50):
+    """
+    Une múltiples fragmentos de contorno que probablemente pertenecen al mismo objeto.
+    """
+    if len(contours) <= 1:
+        return contours
+    
+    # Ordenar por área descendente
+    contours_sorted = sorted(contours, key=cv2.contourArea, reverse=True)
+    
+    # Tomar los contornos más grandes
+    contornos_principales = []
+    area_total = sum(cv2.contourArea(c) for c in contours_sorted)
+    area_acumulada = 0
+    
+    for c in contours_sorted:
+        area = cv2.contourArea(c)
+        if area > area_total * 0.05:  # Solo contornos > 5% del área total
+            contornos_principales.append(c)
+            area_acumulada += area
+        if area_acumulada > area_total * 0.9:  # Cuando tengamos 90% del área
+            break
+    
+    if len(contornos_principales) <= 1:
+        return contornos_principales if contornos_principales else contours_sorted[:1]
+    
+    # Unir contornos cercanos
+    all_points = np.vstack(contornos_principales)
+    
+    return [all_points]
 
 def refinar_prediccion_unet_v2(pred_raw, umbral_confianza=0.3):
     """
-    Post-procesamiento optimizado para HC18
+    Post-procesamiento optimizado para HC18.
+    Versión conservadora que preserva el tamaño original del contorno.
     """
     pred_norm = cv2.normalize(pred_raw, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-    # Umbralización más permisiva
+    # Umbralización 
     _, binary = cv2.threshold(pred_norm, int(umbral_confianza * 255), 255, cv2.THRESH_BINARY)
 
-    # Morfología progresiva
-    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    kernel_medium = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    kernel_large = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+    # Morfología CONSERVADORA para cerrar gaps sin agrandar mucho
+    kernel_small = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    kernel_medium = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 
     # Cerrar gaps pequeños
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_small, iterations=2)
-
-    # Cerrar gaps medianos
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_medium, iterations=2)
-
-    # Cerrar gaps grandes (para fragmentación severa)
-    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_large, iterations=2)
-
-    # Rellenar huecos
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel_medium, iterations=1)
+    
+    # Verificar si el contorno se puede cerrar con fill holes
     binary_filled = ndimage.binary_fill_holes(binary).astype(np.uint8) * 255
+    
+    # Si fill_holes funcionó (área aumentó significativamente), tenemos un contorno cerrado
+    area_original = np.sum(binary > 0)
+    area_filled = np.sum(binary_filled > 0)
+    
+    if area_filled > area_original * 1.5:
+        # El contorno se cerró bien, usar la versión rellena
+        binary_final_region = binary_filled
+    else:
+        # El contorno está muy fragmentado, necesita dilatación más agresiva
+        kernel_connect = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+        binary_dilated = cv2.dilate(binary, kernel_connect, iterations=2)
+        binary_filled_2 = ndimage.binary_fill_holes(binary_dilated).astype(np.uint8) * 255
+        
+        # Erosionar para recuperar tamaño aproximado
+        binary_eroded = cv2.erode(binary_filled_2, kernel_connect, iterations=2)
+        
+        if np.sum(binary_eroded) > area_original * 0.5:
+            binary_final_region = binary_eroded
+        else:
+            # Erosión suave
+            kernel_smaller = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+            binary_eroded_soft = cv2.erode(binary_filled_2, kernel_smaller, iterations=2)
+            binary_final_region = binary_eroded_soft if np.sum(binary_eroded_soft) > area_original * 0.5 else binary_filled_2
 
     # Limpiar ruido pequeño
     binary_clean = morphology.remove_small_objects(
-        binary_filled.astype(bool),
-        min_size=300  # Más permisivo
+        binary_final_region.astype(bool),
+        min_size=300
     ).astype(np.uint8) * 255
 
-    # Suavizado suave
-    binary_smooth = cv2.GaussianBlur(binary_clean, (5, 5), 1)
+    # Suavizado muy suave
+    binary_smooth = cv2.GaussianBlur(binary_clean, (3, 3), 0.5)
     _, binary_final = cv2.threshold(binary_smooth, 127, 255, cv2.THRESH_BINARY)
 
     return binary_final, pred_norm
 
+def refinar_prediccion_multiescala(pred_raw, umbrales=[0.2, 0.3, 0.4, 0.5]):
+    """
+    Procesa la predicción con múltiples umbrales y combina resultados
+    para mejor detección de contornos fragmentados.
+    Convierte bordes a regiones sólidas para mejor detección.
+    """
+    pred_norm = cv2.normalize(pred_raw, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    
+    # Acumulador de máscaras
+    mask_acumulada = np.zeros_like(pred_norm, dtype=np.float32)
+    
+    for umbral in umbrales:
+        _, binary = cv2.threshold(pred_norm, int(umbral * 255), 255, cv2.THRESH_BINARY)
+        
+        # Operaciones morfológicas para cerrar gaps
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=3)
+        
+        # Dilatar para conectar bordes
+        kernel_connect = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (13, 13))
+        binary = cv2.dilate(binary, kernel_connect, iterations=2)
+        
+        # Rellenar huecos
+        binary = ndimage.binary_fill_holes(binary).astype(np.uint8) * 255
+        
+        # Erosionar para recuperar tamaño
+        binary = cv2.erode(binary, kernel_connect, iterations=2)
+        
+        # Acumular con peso basado en el umbral
+        peso = 1.0 - abs(umbral - 0.35)  # Dar más peso a umbrales cercanos a 0.35
+        mask_acumulada += binary.astype(np.float32) * peso
+    
+    # Normalizar y binarizar
+    mask_acumulada = cv2.normalize(mask_acumulada, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    _, mask_final = cv2.threshold(mask_acumulada, 127, 255, cv2.THRESH_BINARY)
+    
+    # Limpiar ruido
+    mask_clean = morphology.remove_small_objects(
+        mask_final.astype(bool),
+        min_size=500
+    ).astype(np.uint8) * 255
+    
+    return mask_clean, pred_norm
+
 # ==============================================================
-# ETAPA 2: DETECCIÓN CON VALIDACIÓN ADAPTATIVA
+# ETAPA 2: DETECCIÓN CON VALIDACIÓN ADAPTATIVA Y AJUSTE ROBUSTO
 # ==============================================================
+
+def ajustar_elipse_desde_intensidad(pred_norm, umbral=0.3):
+    """
+    Ajusta una elipse directamente desde los píxeles de alta intensidad
+    de la predicción, sin necesidad de un contorno cerrado.
+    
+    Usa umbrales más altos para evitar incluir ruido.
+    """
+    mejores_candidatos = []
+    
+    # Usar umbrales más altos para ser más selectivo
+    for u in [0.35, 0.40, 0.45, 0.50, 0.55]:
+        umbral_valor = int(u * 255)
+        puntos_y, puntos_x = np.where(pred_norm > umbral_valor)
+        
+        if len(puntos_x) < 30:
+            continue
+        
+        # Crear array de puntos
+        puntos = np.column_stack([puntos_x, puntos_y]).astype(np.int32)
+        puntos = puntos.reshape(-1, 1, 2)
+        
+        try:
+            ellipse = cv2.fitEllipse(puntos)
+            (cx, cy), (major, minor), angle = ellipse
+            
+            # Validar elipse razonable - más restrictivo
+            if major < 40 or minor < 30:
+                continue
+            if major > 350 or minor > 280:
+                continue
+            
+            aspect_ratio = max(major, minor) / (min(major, minor) + 1e-6)
+            if aspect_ratio > 1.8:  # Más restrictivo
+                continue
+            
+            # Score basado en aspect ratio (preferir más circular)
+            score = 1.0 / aspect_ratio
+            
+            # Bonus por estar centrado
+            dist_centro = np.sqrt((cx - 128)**2 + (cy - 128)**2) / 128
+            score *= (1.0 - 0.3 * min(dist_centro, 1.0))
+            
+            # Penalizar elipses muy grandes (probablemente incluyen ruido)
+            # El área típica de una cabeza fetal en 256x256 es ~20-40% de la imagen
+            area_elipse = np.pi * (major/2) * (minor/2)
+            area_imagen = 256 * 256
+            ratio_area = area_elipse / area_imagen
+            
+            if ratio_area > 0.5:  # Si ocupa más del 50%, probablemente es ruido
+                score *= 0.5
+            elif ratio_area < 0.08:  # Muy pequeña
+                score *= 0.7
+            
+            mejores_candidatos.append((ellipse, score, u))
+        except:
+            continue
+    
+    if not mejores_candidatos:
+        return None
+    
+    # Seleccionar la mejor elipse
+    mejor = max(mejores_candidatos, key=lambda x: x[1])
+    return mejor[0]
+
+def ajustar_elipse_desde_skeleton(binary_mask):
+    """
+    Ajusta una elipse desde el esqueleto de la máscara binaria.
+    El esqueleto representa la línea central del borde detectado.
+    """
+    from skimage.morphology import skeletonize
+    
+    skeleton = skeletonize(binary_mask > 0).astype(np.uint8) * 255
+    
+    # Obtener puntos del esqueleto
+    puntos_y, puntos_x = np.where(skeleton > 0)
+    
+    if len(puntos_x) < 10:
+        return None
+    
+    puntos = np.column_stack([puntos_x, puntos_y]).astype(np.int32)
+    puntos = puntos.reshape(-1, 1, 2)
+    
+    try:
+        ellipse = cv2.fitEllipse(puntos)
+        return ellipse
+    except:
+        return None
+
+def ajustar_elipse_ransac(contorno, n_iter=100, threshold=5.0):
+    """
+    Ajuste robusto de elipse usando RANSAC para ignorar outliers.
+    Especialmente útil cuando el contorno tiene fragmentos incorrectos.
+    """
+    if len(contorno) < 10:
+        return cv2.fitEllipse(contorno) if len(contorno) >= 5 else None
+    
+    puntos = contorno.reshape(-1, 2).astype(np.float32)
+    n_puntos = len(puntos)
+    
+    mejor_elipse = None
+    mejor_inliers = 0
+    
+    for _ in range(n_iter):
+        # Seleccionar 5 puntos aleatorios (mínimo para elipse)
+        indices = np.random.choice(n_puntos, min(20, n_puntos), replace=False)
+        muestra = puntos[indices].reshape(-1, 1, 2).astype(np.int32)
+        
+        try:
+            elipse_candidata = cv2.fitEllipse(muestra)
+            (cx, cy), (major, minor), angle = elipse_candidata
+            
+            # Validar elipse razonable
+            if major < 10 or minor < 10 or major/minor > 3:
+                continue
+            
+            # Contar inliers
+            a = major / 2
+            b = minor / 2
+            angle_rad = np.deg2rad(angle)
+            cos_a = np.cos(angle_rad)
+            sin_a = np.sin(angle_rad)
+            
+            # Distancia de cada punto a la elipse
+            inliers = 0
+            for px, py in puntos:
+                # Transformar al sistema de la elipse
+                dx = px - cx
+                dy = py - cy
+                x_rot = dx * cos_a + dy * sin_a
+                y_rot = -dx * sin_a + dy * cos_a
+                
+                # Distancia normalizada a la elipse
+                dist = abs((x_rot/a)**2 + (y_rot/b)**2 - 1) * min(a, b)
+                
+                if dist < threshold:
+                    inliers += 1
+            
+            if inliers > mejor_inliers:
+                mejor_inliers = inliers
+                mejor_elipse = elipse_candidata
+                
+        except Exception:
+            continue
+    
+    # Si RANSAC no encontró buena elipse, usar método estándar
+    if mejor_elipse is None or mejor_inliers < n_puntos * 0.3:
+        try:
+            return cv2.fitEllipse(contorno)
+        except:
+            return None
+    
+    return mejor_elipse
+
+def ajustar_elipse_pca(contorno):
+    """
+    Ajuste de elipse usando PCA para casos muy fragmentados.
+    Más robusto a outliers que el método directo.
+    """
+    if len(contorno) < 5:
+        return None
+    
+    puntos = contorno.reshape(-1, 2).astype(np.float64)
+    
+    # Centro de masa
+    cx, cy = np.mean(puntos, axis=0)
+    
+    # Centrar puntos
+    puntos_centrados = puntos - [cx, cy]
+    
+    # PCA
+    cov_matrix = np.cov(puntos_centrados.T)
+    eigenvalues, eigenvectors = np.linalg.eigh(cov_matrix)
+    
+    # Ordenar por eigenvalue descendente
+    idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
+    
+    # Ejes de la elipse (usar factor para aproximar mejor el contorno)
+    # El factor 2*sqrt se usa para convertir varianza a semi-eje
+    factor = 2.5  # Ajustado empíricamente para HC
+    major = factor * np.sqrt(eigenvalues[0])
+    minor = factor * np.sqrt(eigenvalues[1])
+    
+    # Ángulo
+    angle = np.rad2deg(np.arctan2(eigenvectors[1, 0], eigenvectors[0, 0]))
+    
+    return ((cx, cy), (major * 2, minor * 2), angle)
+
+def combinar_ajustes_elipse(contorno, pred_norm=None, binary_mask=None, circularidad_contorno=None):
+    """
+    Combina múltiples métodos de ajuste de elipse y selecciona el mejor.
+    Incluye métodos basados en intensidad para contornos fragmentados.
+    
+    Si circularidad_contorno es alta (>0.6), prioriza métodos basados en contorno.
+    Si circularidad_contorno es baja (<0.3), prioriza métodos basados en intensidad.
+    """
+    if len(contorno) < 5:
+        return None, None
+    
+    candidatos = []
+    
+    # Calcular circularidad si no se proporciona
+    if circularidad_contorno is None:
+        area = cv2.contourArea(contorno)
+        perimeter = cv2.arcLength(contorno, True)
+        if perimeter > 0:
+            circularidad_contorno = 4 * np.pi * area / (perimeter ** 2)
+        else:
+            circularidad_contorno = 0
+    
+    # Método 1: OpenCV estándar (siempre incluir)
+    try:
+        elipse_cv = cv2.fitEllipse(contorno)
+        # Dar bonus si circularidad es alta
+        bonus_circ = 1.0 + circularidad_contorno * 0.5
+        candidatos.append(('opencv', elipse_cv, bonus_circ))
+    except:
+        pass
+    
+    # Método 2: RANSAC (bueno para contornos con ruido)
+    elipse_ransac = ajustar_elipse_ransac(contorno)
+    if elipse_ransac:
+        bonus_ransac = 1.0 + circularidad_contorno * 0.3
+        candidatos.append(('ransac', elipse_ransac, bonus_ransac))
+    
+    # Método 3: PCA (para contornos fragmentados)
+    elipse_pca = ajustar_elipse_pca(contorno)
+    if elipse_pca:
+        # Mejor para circularidad baja
+        bonus_pca = 1.0 + (1.0 - circularidad_contorno) * 0.3
+        candidatos.append(('pca', elipse_pca, bonus_pca))
+    
+    # Método 4: Contorno reconstruido
+    contorno_reconstruido = reconstruir_contorno_fragmentado(contorno, (256, 256))
+    if len(contorno_reconstruido) >= 5:
+        try:
+            elipse_reconstruida = cv2.fitEllipse(contorno_reconstruido)
+            # Mejor para circularidad media-baja
+            bonus_rec = 1.0 + (0.5 - min(circularidad_contorno, 0.5)) * 0.4
+            candidatos.append(('reconstruido', elipse_reconstruida, bonus_rec))
+        except:
+            pass
+    
+    # Método 5: Desde intensidad (SOLO para contornos muy fragmentados)
+    if pred_norm is not None and circularidad_contorno < 0.4:
+        elipse_intensidad = ajustar_elipse_desde_intensidad(pred_norm, umbral=0.35)
+        if elipse_intensidad:
+            (cx_i, cy_i), (maj_i, min_i), _ = elipse_intensidad
+            # Penalizar elipses grandes (probablemente incluyen ruido)
+            area_ratio = (np.pi * maj_i * min_i / 4) / (256 * 256)
+            if area_ratio < 0.45:  # Solo si no es demasiado grande
+                bonus_int = 1.0 + (0.4 - circularidad_contorno) * 1.2
+                candidatos.append(('intensidad', elipse_intensidad, bonus_int))
+    
+    # Método 6: Desde skeleton (para contornos fragmentados)
+    # Dar más oportunidad al skeleton que suele ser más preciso
+    if binary_mask is not None and circularidad_contorno < 0.4:
+        elipse_skeleton = ajustar_elipse_desde_skeleton(binary_mask)
+        if elipse_skeleton:
+            bonus_skel = 1.0 + (0.4 - circularidad_contorno) * 1.8  # Mayor bonus
+            candidatos.append(('skeleton', elipse_skeleton, bonus_skel))
+    
+    if not candidatos:
+        return None, None
+    
+    # Evaluar cada candidato
+    def evaluar_elipse(elipse, contorno_original, bonus=1.0):
+        (cx, cy), (major, minor), angle = elipse
+        
+        # Penalizar elipses muy excéntricas
+        aspect_ratio = max(major, minor) / (min(major, minor) + 1e-6)
+        if aspect_ratio > 2.5:
+            return -1
+        
+        # Penalizar elipses demasiado pequeñas o grandes
+        if major < 30 or minor < 20:
+            return -0.5
+        if major > 500 or minor > 400:
+            return -0.5
+        
+        # Calcular qué tan bien la elipse cubre el contorno
+        puntos = contorno_original.reshape(-1, 2)
+        
+        a = major / 2
+        b = minor / 2
+        angle_rad = np.deg2rad(angle)
+        cos_a = np.cos(angle_rad)
+        sin_a = np.sin(angle_rad)
+        
+        distancias = []
+        for px, py in puntos:
+            dx = px - cx
+            dy = py - cy
+            x_rot = dx * cos_a + dy * sin_a
+            y_rot = -dx * sin_a + dy * cos_a
+            dist = abs((x_rot/a)**2 + (y_rot/b)**2 - 1)
+            distancias.append(dist)
+        
+        # Score basado en distancia media y desviación
+        dist_media = np.mean(distancias)
+        dist_std = np.std(distancias)
+        
+        score = 1.0 / (1.0 + dist_media + 0.5 * dist_std)
+        
+        # Bonus por aspect ratio cercano a 1
+        score *= (1.0 / aspect_ratio)
+        
+        # Bonus si la elipse está centrada
+        img_center = np.array([128, 128])
+        dist_centro = np.linalg.norm(np.array([cx, cy]) - img_center) / 128
+        score *= (1.0 - 0.3 * min(dist_centro, 1.0))
+        
+        # Aplicar bonus del método
+        score *= bonus
+        
+        return score
+    
+    # Seleccionar mejor elipse
+    mejor_score = -1
+    mejor_elipse = None
+    mejor_metodo = None
+    
+    for metodo, elipse, bonus in candidatos:
+        score = evaluar_elipse(elipse, contorno, bonus)
+        if score > mejor_score:
+            mejor_score = score
+            mejor_elipse = elipse
+            mejor_metodo = metodo
+    
+    return mejor_elipse, mejor_metodo
 
 def detectar_contorno_adaptativo(binary_mask, pred_norm, HC_esperado=None, debug=True):
     """
-    Detección con umbrales adaptativos según el tamaño esperado
+    Detección con umbrales adaptativos según el tamaño esperado.
+    Ahora con soporte para contornos fragmentados.
     """
     contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -190,21 +659,31 @@ def detectar_contorno_adaptativo(binary_mask, pred_norm, HC_esperado=None, debug
 
     if debug:
         print(f"   📊 Contornos encontrados: {len(contours)}")
+    
+    # Si hay múltiples contornos, intentar unirlos
+    if len(contours) > 1:
+        contours_unidos = unir_contornos_fragmentados(contours, binary_mask.shape)
+        if debug:
+            print(f"   🔗 Contornos después de unión: {len(contours_unidos)}")
+        contours = contours_unidos
 
     # Filtro adaptativo
     def validar_contorno_adaptativo(contorno, img_shape):
         """
         Validación más flexible basada en el dataset HC18
+        Adaptada para contornos tipo borde (no rellenos)
         """
         if len(contorno) < 10:
             return False, {}
 
         area = cv2.contourArea(contorno)
 
-        # Rango adaptativo de área (10-70% de la imagen)
+        # Rango adaptativo de área - más permisivo para contornos tipo borde
+        # Un contorno de borde tiene mucha menos área que un área rellena
         area_ratio = area / img_area
 
-        if area_ratio < 0.08 or area_ratio > 0.75:
+        # Permitir contornos más pequeños (desde 1% para bordes)
+        if area_ratio < 0.01 or area_ratio > 0.75:
             if debug:
                 print(f"      ✗ Área fuera de rango: {area_ratio:.3f}")
             return False, {}
@@ -230,8 +709,9 @@ def detectar_contorno_adaptativo(binary_mask, pred_norm, HC_esperado=None, debug
 
             circularity = 4 * np.pi * area / (perimeter ** 2)
 
-            # Umbral MUY bajo para casos fragmentados
-            if circularity < 0.40:  # Antes era 0.65
+            # Circularidad más permisiva para contornos tipo borde
+            # Los contornos tipo borde tienen circularidad más baja
+            if circularity < 0.15:  # Muy permisivo para bordes
                 if debug:
                     print(f"      ✗ Circularidad baja: {circularity:.3f}")
                 return False, {}
@@ -289,13 +769,20 @@ def detectar_contorno_adaptativo(binary_mask, pred_norm, HC_esperado=None, debug
         if debug:
             print("   ⚠️ Ningún contorno pasó validación (intentando modo de emergencia)")
 
-        # MODO DE EMERGENCIA: Tomar el contorno más grande sin validar
+        # MODO DE EMERGENCIA MEJORADO: Usar métodos robustos de ajuste de elipse
         if len(contours) > 0:
             contorno_mayor = max(contours, key=cv2.contourArea)
 
             if len(contorno_mayor) >= 5:
                 try:
-                    ellipse_emergency = cv2.fitEllipse(contorno_mayor)
+                    # Intentar primero con métodos robustos
+                    elipse_robusta, metodo_usado = combinar_ajustes_elipse(
+                        contorno_mayor, pred_norm, binary_mask
+                    )
+                    
+                    if elipse_robusta is None:
+                        elipse_robusta = cv2.fitEllipse(contorno_mayor)
+                        metodo_usado = 'opencv_emergencia'
 
                     metrics_emergency = {
                         'area': cv2.contourArea(contorno_mayor),
@@ -304,12 +791,13 @@ def detectar_contorno_adaptativo(binary_mask, pred_norm, HC_esperado=None, debug
                         'aspect_ratio': 0.0,
                         'center_ratio': 0.0,
                         'score': 0.0,
-                        'ellipse': ellipse_emergency,
+                        'ellipse': elipse_robusta,
+                        'metodo_elipse': metodo_usado,
                         'modo': 'emergencia'
                     }
 
                     if debug:
-                        print("   🚨 Usando modo de emergencia (contorno más grande)")
+                        print(f"   🚨 Usando modo de emergencia (método: {metodo_usado})")
 
                     return contorno_mayor, metrics_emergency
                 except:
@@ -319,6 +807,30 @@ def detectar_contorno_adaptativo(binary_mask, pred_norm, HC_esperado=None, debug
 
     # Seleccionar mejor candidato
     mejor_contorno, mejores_metrics = max(candidatos, key=lambda x: x[1]['score'])
+    
+    # Solo aplicar métodos robustos si la circularidad es baja
+    # Para contornos con buena circularidad, usar OpenCV estándar que es más preciso
+    circularidad = mejores_metrics.get('circularity', 0)
+    
+    if circularidad < 0.7:
+        # Contorno de calidad media-baja: intentar mejorar con métodos robustos
+        if debug:
+            print("   🔧 Aplicando ajuste robusto de elipse (circularidad baja)...")
+        
+        elipse_robusta, metodo_usado = combinar_ajustes_elipse(
+            mejor_contorno, pred_norm, binary_mask, circularidad
+        )
+        
+        if elipse_robusta:
+            mejores_metrics['ellipse'] = elipse_robusta
+            mejores_metrics['metodo_elipse'] = metodo_usado
+            if debug:
+                print(f"   ✅ Método de elipse seleccionado: {metodo_usado}")
+    else:
+        # Contorno de buena calidad: usar OpenCV estándar
+        if debug:
+            print("   ✅ Usando método estándar (circularidad alta)")
+        mejores_metrics['metodo_elipse'] = 'opencv_standard'
 
     if debug:
         print(f"   ✅ Mejor contorno seleccionado: Score={mejores_metrics['score']:.3f}")
@@ -358,15 +870,20 @@ def calcular_HC_robusto(contorno, ellipse, pixel_size, HC_esperado=None):
     # Si el contorno es muy fragmentado, confiar más en la elipse
     circularity = 4 * np.pi * cv2.contourArea(contorno) / (perimetro_px**2 + 1e-10)
 
+    # Para contornos de alta calidad, usar principalmente Ramanujan (estándar clínico)
+    # El perímetro del contorno puede estar afectado por el post-procesamiento
     if circularity > 0.80:
-        # Contorno limpio -> promediar
-        HC_final = (HC_ramanujan * 0.5 + HC_contorno * 0.3 + HC_exact * 0.2)
+        # Contorno limpio -> Ramanujan es más confiable
+        HC_final = HC_ramanujan
+        metodo = 'ramanujan'
     elif circularity > 0.60:
-        # Contorno aceptable -> confiar más en Ramanujan
-        HC_final = (HC_ramanujan * 0.7 + HC_contorno * 0.2 + HC_exact * 0.1)
+        # Contorno aceptable -> Ramanujan con pequeño ajuste
+        HC_final = HC_ramanujan
+        metodo = 'ramanujan'
     else:
         # Contorno fragmentado -> solo Ramanujan
         HC_final = HC_ramanujan
+        metodo = 'ramanujan'
 
     # BPD y OFD
     BPD_mm = minor * pixel_size
@@ -381,7 +898,7 @@ def calcular_HC_robusto(contorno, ellipse, pixel_size, HC_esperado=None):
         'OFD_mm': OFD_mm,
         'aspect_ratio': major / minor,
         'circularity': circularity,      
-        'metodo_usado': 'mixto' if circularity > 0.60 else 'ramanujan'
+        'metodo_usado': metodo
     }
 
     if HC_esperado:
@@ -402,14 +919,14 @@ def calcular_HC_robusto(contorno, ellipse, pixel_size, HC_esperado=None):
 
 def medir_HC_pipeline_optimizado(pred_raw, pixel_size, HC_esperado=None, visualizar=False, debug=True):
     """
-    Pipeline optimizado con fallbacks
+    Pipeline optimizado con fallbacks y detección multi-escala
     """
     if debug:
         print(f"\n{'─'*70}")
-        print("🔬 PIPELINE OPTIMIZADO - GRADO MÉDICO")
+        print("🔬 PIPELINE OPTIMIZADO - GRADO MÉDICO V2")
         print(f"{'─'*70}")
 
-    # Etapa 1: Post-procesamiento
+    # Etapa 1: Post-procesamiento estándar
     if debug:
         print("📍 Etapa 1: Post-procesamiento de predicción...")
 
@@ -420,6 +937,25 @@ def medir_HC_pipeline_optimizado(pred_raw, pixel_size, HC_esperado=None, visuali
         print("📍 Etapa 2: Detección de contorno...")
 
     contorno, metrics = detectar_contorno_adaptativo(binary_mask, pred_norm, HC_esperado, debug=debug)
+
+    # Si falla, intentar con detección multi-escala
+    if contorno is None or (metrics and metrics.get('score', 0) < 0.3):
+        if debug:
+            print("📍 Etapa 2b: Intentando detección multi-escala...")
+        
+        binary_mask_multi, _ = refinar_prediccion_multiescala(pred_raw)
+        contorno_multi, metrics_multi = detectar_contorno_adaptativo(
+            binary_mask_multi, pred_norm, HC_esperado, debug=debug
+        )
+        
+        # Usar resultado multi-escala si es mejor
+        if contorno_multi is not None:
+            if contorno is None or (metrics_multi and metrics_multi.get('score', 0) > metrics.get('score', 0)):
+                contorno = contorno_multi
+                metrics = metrics_multi
+                binary_mask = binary_mask_multi
+                if debug:
+                    print("   ✅ Usando resultado de detección multi-escala")
 
     if contorno is None:
         print("❌ FALLO: No se pudo detectar contorno válido")
@@ -444,14 +980,18 @@ def medir_HC_pipeline_optimizado(pred_raw, pixel_size, HC_esperado=None, visuali
 
         return None, None, None, None
 
-    # Etapa 3: Ajuste de elipse
+    # Etapa 3: Ajuste de elipse (ya mejorado en detectar_contorno_adaptativo)
     if debug:
         print("📍 Etapa 3: Ajuste de elipse...")
 
     ellipse = metrics.get('ellipse')
 
     if ellipse is None:
-        ellipse = cv2.fitEllipse(contorno)
+        # Usar ajuste robusto como fallback
+        ellipse, metodo = combinar_ajustes_elipse(contorno, pred_norm)
+        if ellipse is None:
+            ellipse = cv2.fitEllipse(contorno)
+        metrics['metodo_elipse'] = metodo if metodo else 'opencv_fallback'
 
     # Etapa 4: Cálculo de HC
     if debug:
@@ -683,14 +1223,15 @@ def main():
     # Bloque de salida decorativa (con fallback ascii si encoding falla)
     try:
         print("\n" + "🚀 "*20)
-        print("INICIANDO PROCESAMIENTO CON PIPELINE OPTIMIZADO")
+        print("INICIANDO PROCESAMIENTO CON PIPELINE OPTIMIZADO V2")
         print("🚀 "*20 + "\n")
     except UnicodeEncodeError:
         print("\n" + "ROCKET "*10)
-        print("INICIANDO PROCESAMIENTO CON PIPELINE OPTIMIZADO")
+        print("INICIANDO PROCESAMIENTO CON PIPELINE OPTIMIZADO V2")
         print("ROCKET "*10 + "\n")
 
-    imagenes_test = ["045", "050", "300", "202"]
+    # Imágenes de prueba
+    imagenes_test = ["001", "002", "300", "042"]
     return procesar_con_pipeline_optimizado(imagenes_test, visualizar_todos=True)
 
 if __name__ == "__main__":
@@ -719,7 +1260,7 @@ if __name__ == "__main__":
 
         print("="*110)
         print(f"\nESTADÍSTICAS GLOBALES:")
-        print(f"   • Procesadas exitosamente: {len(resultados)}/{len(imagenes_test)}")
+        print(f"   • Procesadas exitosamente: {len(resultados)}")
         print(f"   • Error promedio: {np.mean(errores):.2f}%")
         print(f"   • Error mediano: {np.median(errores):.2f}%")
         print(f"   • Desviación estándar: {np.std(errores):.2f}%")
